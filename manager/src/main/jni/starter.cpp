@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
     }
 
     uid_t uid = getuid();
-    if (uid != 0 && uid != 2000 && uid != 1000) {
+    if (uid != 0 && uid != 2000               ) {
         perrorf("fatal: run Shizuku from non root nor adb nor system user (uid=%d).\n", uid);
         exit(EXIT_FATAL_UID);
     }
