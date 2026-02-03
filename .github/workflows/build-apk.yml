@@ -23,16 +23,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # 新增这个步骤：自动接受所有 Android SDK 许可证
+    # 新增：自动接受所有 Android SDK 许可证（最可靠方式）
     - name: Accept Android SDK Licenses
-      run: |
-        yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses || true
-        # || true 是为了如果已经接受了或没新许可，也继续不报错
-
-    # 可选：如果项目需要特定 SDK 版本，可以在这里预安装（但 Shizuku 通常 Gradle 会自动拉）
-    # - name: Install required SDK packages
-    #   run: |
-    #     yes | $ANDROID_HOME/tools/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+      uses: SimonMarquis/android-accept-licenses@v1
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
