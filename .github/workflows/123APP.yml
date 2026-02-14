@@ -1,82 +1,105 @@
-name: Build Shizuku App (All Debug Signed)   # 工作流名称，可自定义
+name: Build Shizuku Debug APK
 
-on:                                      # 触发条件，必须有
-  workflow_dispatch:                     # 手动触发（你用的这个）
+on:
+  workflow_dispatch:
     inputs:
       prerelease:
-        description: 'Prerelease (add -beta suffix)'
+        description: 'Prerelease (add -beta suffix to version)'
         type: boolean
         required: false
         default: false
 
-jobs:                                    # 必须有，定义任务
-  build:                                 # 任务名，可自定义
-    runs-on: ubuntu-latest               # 运行环境
-    permissions:                         # 权限（可选，但你的有）
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
       contents: read
       id-token: write
       attestations: write
       artifact-metadata: write
 
-    outputs:                             # 输出变量（可选）
-      versionName: ${{ steps.buildWithGradle.outputs.versionName }}
-      artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
-
-    steps:                               # 步骤列表
-      - name: Checkout                   # 第一步：拉代码
+    steps:
+      - name: Checkout repository
         uses: actions/checkout@v6
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
-      - name: Setup Java                 # 设置 Java
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle               # 设置 Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
           build-scan-publish: true
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
 
-      - name: Build with Gradle (始终调试签名)  # 这就是你报错的那个 step
+      - name: Build with Gradle (debug only)
         id: buildWithGradle
         run: |
-          # 这里是刚才我给你修复的 shell 脚本内容
+          # 同意 licenses
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+
+          # 优化 gradle
           echo 'org.gradle.caching=true' >> gradle.properties
           echo 'org.gradle.parallel=true' >> gradle.properties
 
+          # 执行构建
           ./gradlew :manager:assembleDebug
 
-          FILE=$(find manager/build/outputs/apk/debug -name "*.apk" | head -n 1)
-          if [ -z "$FILE" ]; then
-            echo "Error: No APK found in manager/build/outputs/apk/debug"
+          # 调试输出：显示 debug 目录内容
+          echo "=== Debug APK directory listing ==="
+          ls -la manager/build/outputs/apk/debug/ || echo "Directory not found"
+
+          # 查找 APK 文件（匹配 shizuku-*-debug.apk）
+          APK_FILE=$(find manager/build/outputs/apk/debug -type f -name "shizuku-*-debug.apk" | head -n 1)
+
+          if [ -z "$APK_FILE" ]; then
+            echo "ERROR: No shizuku-*-debug.apk found in manager/build/outputs/apk/debug"
             exit 1
           fi
 
-          BASENAME=$(basename "$FILE")
+          echo "Found APK: $APK_FILE"
+
+          # 提取版本号
+          BASENAME=$(basename "$APK_FILE")
           VERSION=${BASENAME#shizuku-}
           VERSION=${VERSION%-debug.apk}
 
+          # 如果是 prerelease，加 -beta
           if [ "${{ inputs.prerelease }}" = "true" ]; then
             VERSION="${VERSION}-beta"
           fi
 
           ARTIFACT_NAME="shizuku-${VERSION}-debug.apk"
 
-          RENAMED="$(dirname "\( FILE")/ \){ARTIFACT_NAME}"
-          mv -f "$FILE" "$RENAMED" || { echo "mv failed"; exit 1; }
+          # 复制到最终路径（用 cp 避免 mv 删除原文件）
+          FINAL_PATH="manager/build/outputs/apk/debug/${ARTIFACT_NAME}"
+          cp -f "$APK_FILE" "$FINAL_PATH" || { echo "cp failed, using original"; FINAL_PATH="$APK_FILE"; }
 
+          echo "Final artifact name: ${ARTIFACT_NAME}"
+          echo "Final path: ${FINAL_PATH}"
+
+          # 输出给后续步骤
           echo "versionName=${VERSION}" >> $GITHUB_OUTPUT
           echo "artifactName=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-          echo "filePath=${RENAMED}" >> $GITHUB_OUTPUT
+          echo "filePath=${FINAL_PATH}" >> $GITHUB_OUTPUT
 
-      - name: Upload Artifact            # 上传 APK 作为 artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.buildWithGradle.outputs.artifactName }}
           path: ${{ steps.buildWithGradle.outputs.filePath }}
+          if-no-files-found: error   # 如果还是找不到会报错，便于调试
+
+      # 可选：如果想上传整个 debug 目录作为 fallback
+      - name: Upload All Debug Files (fallback)
+        if: failure()  # 只在上面失败时执行
+        uses: actions/upload-artifact@v6
+        with:
+          name: shizuku-debug-full-dir
+          path: manager/build/outputs/apk/debug/
