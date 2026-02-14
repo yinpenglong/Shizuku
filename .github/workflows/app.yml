@@ -26,8 +26,7 @@ jobs:
 
     env:
       KEYSTORE: ${{ secrets.KEYSTORE }}
-
-    outputs:
+outputs:
       versionName: ${{ steps.buildWithGradle.outputs.versionName }}
       artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
     
