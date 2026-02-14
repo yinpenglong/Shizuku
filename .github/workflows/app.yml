@@ -26,10 +26,11 @@ jobs:
 
     env:
       KEYSTORE: ${{ secrets.KEYSTORE }}
-outputs:
+
+    outputs:
       versionName: ${{ steps.buildWithGradle.outputs.versionName }}
       artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
