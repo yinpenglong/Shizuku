@@ -46,8 +46,8 @@ jobs:
           java-version: '21'
 
       - name: Validate Signing Config
-        #run: |
-          #if [ "${{ inputs.debug }}" = "false" ] && [ "$KEYSTORE" = "" ]; then
+        run: |
+          if [ "${{ inputs.debug }}" ≠ "false" ] && [ "$KEYSTORE" = "" ]; then
             echo "::error::Signing secrets not configured. Signing secrets are required for release builds."
             exit 1
           fi
