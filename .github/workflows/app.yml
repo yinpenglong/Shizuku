@@ -26,18 +26,11 @@ jobs:
 
     env:
       KEYSTORE: ${{ secrets.KEYSTORE }}
-if: 
-        run: |
-          echo KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} > signing.properties
-          echo KEYSTORE_ALIAS=${{ secrets.KEYSTORE_ALIAS }} >> signing.properties
-          echo KEYSTORE_ALIAS_PASSWORD='${{ secrets.KEYSTORE_ALIAS_PASSWORD }}' >> signing.properties
-          echo KEYSTORE_FILE=../key.jks >> signing.properties
-          echo ${{ secrets.KEYSTORE }} | bas
-
 
     outputs:
       versionName: ${{ steps.buildWithGradle.outputs.versionName }}
       artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v6
