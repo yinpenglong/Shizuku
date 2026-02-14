@@ -26,10 +26,18 @@ jobs:
 
     env:
       KEYSTORE: ${{ secrets.KEYSTORE }}
+if: ${{ !inputs.debug && env.KEYSTORE != '' }}
+        run: |
+          echo KEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} > signing.properties
+          echo KEYSTORE_ALIAS=${{ secrets.KEYSTORE_ALIAS }} >> signing.properties
+          echo KEYSTORE_ALIAS_PASSWORD='${{ secrets.KEYSTORE_ALIAS_PASSWORD }}' >> signing.properties
+          echo KEYSTORE_FILE=../key.jks >> signing.properties
+          echo ${{ secrets.KEYSTORE }} | bas
 
-    outputs:
-      versionName: ${{ steps.buildWithGradle.outputs.versionName }}
-      artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
+
+    #outputs:
+      #versionName: ${{ steps.buildWithGradle.outputs.versionName }}
+      #artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
 
     steps:
       - name: Checkout
@@ -47,7 +55,7 @@ jobs:
 
       - name: Validate Signing Config
         run: |
-          if [ "${{ inputs.debug }}" ≠ "false" ] && [ "$KEYSTORE" = "" ]; then
+          if [ "${{ inputs.debug }}" = "false" ] && [ "$KEYSTORE" = "" ]; then
             echo "::error::Signing secrets not configured. Signing secrets are required for release builds."
             exit 1
           fi
