@@ -1,4 +1,4 @@
-name: Build App (All Debug Signed)
+name: Build Shizuku App (All Debug Signed)
 
 on:
   workflow_dispatch:
@@ -73,8 +73,3 @@ jobs:
         with:
           name: ${{ steps.buildWithGradle.outputs.artifactName }}
           path: ${{ steps.buildWithGradle.outputs.filePath }}
-
-  release:
-    if: false  # 禁用原 release job，因为我们全 debug
-    needs: [build]
-    # ... 省略或删除整个 release job
