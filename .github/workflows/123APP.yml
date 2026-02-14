@@ -1,7 +1,7 @@
-name: Build Shizuku App (All Debug Signed)
+name: Build Shizuku App (All Debug Signed)   # 工作流名称，可自定义
 
-on:
-  workflow_dispatch:
+on:                                      # 触发条件，必须有
+  workflow_dispatch:                     # 手动触发（你用的这个）
     inputs:
       prerelease:
         description: 'Prerelease (add -beta suffix)'
@@ -9,66 +9,73 @@ on:
         required: false
         default: false
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    permissions:
+jobs:                                    # 必须有，定义任务
+  build:                                 # 任务名，可自定义
+    runs-on: ubuntu-latest               # 运行环境
+    permissions:                         # 权限（可选，但你的有）
       contents: read
       id-token: write
       attestations: write
       artifact-metadata: write
 
-    outputs:
+    outputs:                             # 输出变量（可选）
       versionName: ${{ steps.buildWithGradle.outputs.versionName }}
       artifactName: ${{ steps.buildWithGradle.outputs.artifactName }}
 
-    steps:
-      - name: Checkout
+    steps:                               # 步骤列表
+      - name: Checkout                   # 第一步：拉代码
         uses: actions/checkout@v6
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
-      - name: Setup Java
+      - name: Setup Java                 # 设置 Java
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Gradle
+      - name: Setup Gradle               # 设置 Gradle
         uses: gradle/actions/setup-gradle@v5
         with:
           build-scan-publish: true
           build-scan-terms-of-use-url: "https://gradle.com/terms-of-service"
           build-scan-terms-of-use-agree: "yes"
 
-      - name: Build with Gradle (always debug signed)
+      - name: Build with Gradle (始终调试签名)  # 这就是你报错的那个 step
         id: buildWithGradle
         run: |
+          # 这里是刚才我给你修复的 shell 脚本内容
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
           echo 'org.gradle.caching=true' >> gradle.properties
           echo 'org.gradle.parallel=true' >> gradle.properties
 
           ./gradlew :manager:assembleDebug
-          FILE=$(ls manager/build/outputs/apk/debug/*.apk | head -n 1)
 
-          VERSION=\( (echo " \)(basename "$FILE")" | sed -E 's/^shizuku-(.*)-debug\.apk/\1/')
+          FILE=$(find manager/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -z "$FILE" ]; then
+            echo "Error: No APK found in manager/build/outputs/apk/debug"
+            exit 1
+          fi
+
+          BASENAME=$(basename "$FILE")
+          VERSION=${BASENAME#shizuku-}
+          VERSION=${VERSION%-debug.apk}
+
           if [ "${{ inputs.prerelease }}" = "true" ]; then
             VERSION="${VERSION}-beta"
           fi
 
-          ARTIFACT_NAME="shizuku-$VERSION-debug.apk"
+          ARTIFACT_NAME="shizuku-${VERSION}-debug.apk"
 
-          RENAMED="$(dirname "$FILE")/$ARTIFACT_NAME"
-          if [ "$FILE" != "$RENAMED" ]; then
-            mv "$FILE" "$RENAMED"
-          fi
+          RENAMED="$(dirname "\( FILE")/ \){ARTIFACT_NAME}"
+          mv -f "$FILE" "$RENAMED" || { echo "mv failed"; exit 1; }
 
-          echo "versionName=$VERSION" >> $GITHUB_OUTPUT
-          echo "artifactName=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
-          echo "filePath=$RENAMED" >> $GITHUB_OUTPUT
+          echo "versionName=${VERSION}" >> $GITHUB_OUTPUT
+          echo "artifactName=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          echo "filePath=${RENAMED}" >> $GITHUB_OUTPUT
 
-      - name: Upload Artifact
+      - name: Upload Artifact            # 上传 APK 作为 artifact
         uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.buildWithGradle.outputs.artifactName }}
