@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
 
     se::init();
 
-    if (uid == 0) {
+    if (uid == 0 || uid == 1000) {
         switch_cgroup();
 
         if (android_get_device_api_level() >= 29) {
